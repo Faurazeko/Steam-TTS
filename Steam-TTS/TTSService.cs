@@ -5,12 +5,10 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using System.Globalization;
-using Newtonsoft.Json.Linq;
-using Newtonsoft.Json;
+using System.Text.Json;
 using System.Speech.Synthesis;
-using System.Windows.Forms;
 using System.Threading;
-using Microsoft.Win32;
+using System.Text.Json.Serialization;
 
 namespace Steam_TTS
 {
@@ -39,11 +37,9 @@ namespace Steam_TTS
         {
             set
             {
-
                 var newSettings = Settings;
                 newSettings.LoadWithWindows = value;
                 Settings = newSettings;
-
             }
             get => Settings.LoadWithWindows;
         }
@@ -102,9 +98,7 @@ namespace Steam_TTS
             set
             {
                 if (value)
-                {
                     _Speech.SpeakAsyncCancelAll();
-                }
 
                 _SpeakThreadMutex.WaitOne();
 
@@ -117,16 +111,16 @@ namespace Steam_TTS
 
         public struct SpeechSettings
         {
-            [JsonProperty("volume")]
+            [JsonPropertyName("volume")]
             public int Volume { get; set; }
 
-            [JsonProperty("rate")]
+            [JsonPropertyName("rate")]
             public int Rate { get; set; }
 
-            [JsonProperty("dontRepeatNick")]
+            [JsonPropertyName("dontRepeatNick")]
             public bool DontRepeatNick { get; set; }
 
-            [JsonProperty("LoadWithWindows")]
+            [JsonPropertyName("LoadWithWindows")]
             public bool LoadWithWindows { get; set; }
 
         }
@@ -157,13 +151,10 @@ namespace Steam_TTS
                     var message = _SpeakOrder.Pop();
 
                     if (_Mute)
-                    {
                         continue;
-                    }
 
                     try
                     {
-
                         _Speech.Speak(message);
                     }
                     catch (OperationCanceledException){}
@@ -181,14 +172,13 @@ namespace Steam_TTS
             _Speech.Rate = Settings.Rate; // -10 ... 100
         }
 
-        // загрузка настроек из settings.json
         public bool LoadSettings()
         {
             if (File.Exists("settings.json"))
             {
                 try
                 {
-                    Settings = JsonConvert.DeserializeObject<SpeechSettings>(File.ReadAllText("settings.json"));
+                    Settings = JsonSerializer.Deserialize<SpeechSettings>(File.ReadAllText("settings.json"));
 
                     UpdateSpeech();
 
@@ -202,30 +192,21 @@ namespace Steam_TTS
                 return false;
         }
 
-        // сохраняет настройки в settings.json
         public void SaveSettings()
         {
-            File.WriteAllText("settings.json", JsonConvert.SerializeObject(Settings));
+            File.WriteAllText("settings.json", JsonSerializer.Serialize(Settings));
         }
 
-        // принудительное завершение сервиса
         public void ForceDispose()
         {
-            _SpeakThread.Abort();
+            _RunSpeakThread = false;
 
             Dispose();
         }
 
-        public void SkipMessage()
-        {
-            _Speech.SpeakAsyncCancelAll();
-        }
+        public void SkipMessage() => _Speech.SpeakAsyncCancelAll();
 
-        // завершение сервиса с ожиданием оставшихся сообщений
-        public void Dispose()
-        {
-            _RunSpeakThread = false;
-        }
+        public void Dispose() => _RunSpeakThread = false;
 
         public TTSService()
         {
@@ -238,7 +219,6 @@ namespace Steam_TTS
             _SpeakThread.Start();
         }
 
-        // добавляет слово которое надо сказать в очередь
         public void Speak(string what)
         {
             _SpeakThreadMutex.WaitOne();

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Threading;
 using System.Text.RegularExpressions;
 using System.Windows;
 using Steamworks;
@@ -8,8 +7,8 @@ namespace Steam_TTS
 {
     public static class Program
     {
-        static SteamId lastSteamId;
-        public static TTSService TTS;
+        private static SteamId _lastSteamId;
+        public static TTSService TtsService;
         static Regex LinkPattern = new Regex(@"(?:https?:\/\/)?(?:[\w\.]+)\.(?:[a-z]{2,6}\.?)(?:\/[\w\.]*)*\/?", RegexOptions.Compiled);
         static Regex SmilePattern = new Regex(":[A-Za-z0-9_]+:", RegexOptions.Compiled);
 
@@ -19,13 +18,13 @@ namespace Steam_TTS
             content = SmilePattern.Replace(content, "смайлик");
             content = LinkPattern.Replace(content, "ссылка");
 
-            if (!TTS.DontRepeatNick || lastSteamId != friend.Id)
+            if (!TtsService.DontRepeatNick || _lastSteamId != friend.Id)
             {
-                lastSteamId = friend.Id;
+                _lastSteamId = friend.Id;
                 content = friend.Name + " сказал: " + content;
             }
 
-            TTS.Speak(content);
+            TtsService.Speak(content);
         }
 
         [STAThread]
@@ -35,9 +34,9 @@ namespace Steam_TTS
             {
                 SteamClient.Init(480);
             }
-            catch (System.Exception)
+            catch (Exception)
             {
-                System.Windows.MessageBox.Show(
+                MessageBox.Show(
                         "Для работы программы требуется запущенный Steam!\n\n(Не удалось инициализировать Steam Client)",
                         "TTS",
                         MessageBoxButton.OK,
@@ -56,7 +55,7 @@ namespace Steam_TTS
                     OnSteamMessage(friend, content);
                 };
 
-                TTS = new TTSService();
+                TtsService = new TTSService();
 
                 System.Windows.Forms.Application.EnableVisualStyles();
                 System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
